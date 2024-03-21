@@ -1,7 +1,7 @@
 program snake_game;
 
 uses
-	crt, sysUtils;
+	crt;
 
 const
   minFieldWidth = 8;
@@ -9,15 +9,12 @@ const
   
   stdInputColor = LightRed;
   stdPrintColor = LightGreen;
-
-	borderChar = ' ';
-	fieldChar = ' ';
 	
 	delayDuration = 75;
 	
 	maxFoodSatiation = 3;
 	
-	EFoodLength = 2;
+	borderChar = '#';
 type
 
 	TVector = record
@@ -29,12 +26,7 @@ type
 		width: integer;
 		height: integer;
 	end;
-	TField = record
-	  size: TSize;
-	  color: integer;
-	  borderColor: integer;
-	end;
-	
+
 	TSnakePart = TVector;
 	
 	TSnake = record
@@ -78,12 +70,31 @@ begin
   'You entered an incorrect field height');
 end;
 
-procedure DrawSnake(snake: TSnake);
+procedure UpdateSnake(var snake: TSnake);
 var
-	i: integer;
-begin
-	
-	TextBackground(snake.color);
+  i: integer;
+begin  
+  for i := 1 to snake.length do
+  begin
+    GotoXY(snake.parts[i].x, snake.parts[i].y);
+    TextBackground(black);
+    write(' ');  
+  end;
+
+  for i := snake.length downto 2 do
+  begin
+    GotoXY(snake.parts[i - 1].x, snake.parts[i - 1].y);
+    write(' ');
+  
+    snake.parts[i] := snake.parts[i - 1];
+  end;
+  
+  GotoXY(1, 1);
+  
+  snake.parts[1].x := snake.parts[1].x + snake.direction.x;
+  snake.parts[1].y := snake.parts[1].y + snake.direction.y;
+  
+  TextBackground(snake.color);
 	for i := 2 to snake.length do
 	begin
 		GotoXY(snake.parts[i].x, snake.parts[i].y);
@@ -98,41 +109,31 @@ begin
 	GotoXY(1,1);
 end;
 
-procedure MoveSnake(var snake: TSnake);
-var
-  i: integer;
-begin  
-  for i := snake.length downto 2 do
-    snake.parts[i] := snake.parts[i - 1];
-  
-  snake.parts[1].x := snake.parts[1].x + snake.direction.x;
-  snake.parts[1].y := snake.parts[1].y + snake.direction.y;
-end;
-
-procedure DrawField(size: TSize; bgColor: integer);
+procedure DrawBorder(size: TSize);
 var
 	row, col: integer;
 begin
 	GotoXY(1, 1);
   TextColor(LightGreen);
-  TextBackground(bgColor);
+  TextBackground(Black);
 	for col := 1 to size.width do
-		write('#');
+		write(borderChar);
 		
 	writeln;
 	
-	for row := 1 to size.height - 2 do
+	for row := 1 to size.height - 1 do
 	begin
-		write('#');
-		for col := 1 to size.width - 2 do
-			write(' ');
+		write(borderChar);
+    
+    GotoXY(size.width, row);  
 			
-		writeln('#');
+		writeln(borderChar);
 	end;
 	
 	for col := 1 to size.width do
-		write('#');
-		
+		write(borderChar);
+	
+	GotoXY(1,1);	
 end;	
 
 procedure InitSnake(var snake: TSnake; fieldSize: TSize);
@@ -196,14 +197,6 @@ begin
 
 end;
 
-procedure DrawFood(food: TFood);
-begin
-  GotoXY(food.pos.x, food.pos.y);
-  TextBackground(food.color);
-  write(' ');
-  GotoXY(1,1);
-end;
-
 function FindEmptyCell(snake: TSnake; fieldSize: TSize): TVector;
 var
   i, y: integer;
@@ -263,11 +256,16 @@ begin
       food.pos := FindEmptyCell(snake, fieldSize);
   end;
   
+  GotoXY(food.pos.x, food.pos.y);
+  TextBackground(food.color);
+  write(' ');
+  GotoXY(1,1);
+  
 end;
 
 procedure ShowResultScreen(loose: boolean; snakeLength: integer);
 var
-  resultMsg, scoreMsg: string;
+  resultMsg, scoreMsg, scoreValueStr: string;
 begin
   delay(1500);
   write(#27'[0m');
@@ -288,7 +286,8 @@ begin
   
   TextColor(LightCyan or blink);
   
-  scoreMsg := 'Score: ' + IntToStr(snakeLength);
+  Str(snakeLength - 1, ScoreValueStr);
+  scoreMsg := 'Score: ' + ScoreValueStr;
   
   // 12 - length of 'Score'
   GotoXY((ScreenWidth - length(scoreMsg)) div 2, (ScreenHeight div 2) + 1);
@@ -313,37 +312,38 @@ begin
       gameOver := true;
       exit;
     end;
+    
+  // Border
   if snakeHead.x = fieldSize.width then
-    snake.parts[1].x := 2
+  begin
+    snake.parts[1].x := 2;
+    DrawBorder(fieldSize);
+  end
   else if snakeHead.x = 1 then
   begin
-    snake.parts[1].x := fieldSize.width - 1;
-    
-    { Fix terminal bug }
-    {GotoXY(fieldSize.width + 3, snake.parts[1].y);
-    TextBackground(black);
-    write(' ');}
-    { Fix terminal bug }
-    
+    snake.parts[1].x := fieldSize.width - 1;  
+    DrawBorder(fieldSize);  
   end
   else if snakeHead.y = fieldSize.height then
   begin
     snake.parts[1].y := 2;
+    DrawBorder(fieldSize);
   end
   else if snakeHead.y = 1 then
   begin
     snake.parts[1].y := fieldSize.height - 1;
+    DrawBorder(fieldSize);
   end;
   // Food
   if (snakeHead.x = food.pos.x) and (snakeHead.y = food.pos.y) then
   begin
       
     snake.length := snake.length + food.satiation;
+    DrawBorder(fieldSize);
     
-    // Check win
     if snake.length >= ((fieldSize.width * fieldSize.height) div 2) then
     begin
-	    ShowResultScreen(false, snake.length);
+      ShowResultScreen(false, snake.length);
       gameOver := true;
     end;
     
@@ -433,6 +433,7 @@ var
 	bgColor: integer;
 	
 begin
+
   fieldSize.width := 30;
   fieldSize.height := 18;
   bgColor := Black;
@@ -448,19 +449,19 @@ begin
   clrscr;
   
   UpdateFood(snake, food, fieldSize);
+  
+  DrawBorder(fieldSize);
+  
 	while not gameOver do
 	begin
-	  if KeyPressed then
-	    HandleKey(snake, gameOver);
-	  
-	  DrawField(fieldSize, bgColor);
-	  MoveSnake(snake);
-	  DrawSnake(snake);
-	  HandleCollision(snake, gameOver, food, fieldSize);
-	  DrawFood(food);
-	  
-	  delay(delayDuration);
-	  
+    delay(delayDuration);
+	  	  
+    if KeyPressed then
+      HandleKey(snake, gameOver);
+    
+    UpdateSnake(snake);
+    HandleCollision(snake, gameOver, food, fieldSize);
+    
 	end;
 	
 	write(#27'[0m');
