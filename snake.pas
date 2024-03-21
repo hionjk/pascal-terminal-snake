@@ -429,14 +429,10 @@ var
 	food: TFood;	
 	fieldSize: TSize;
 	gameOver: boolean;
-	c: char;
-	bgColor: integer;
 	
 begin
-
   fieldSize.width := 30;
   fieldSize.height := 18;
-  bgColor := Black;
   
   randomize;
   gameOver := false;
