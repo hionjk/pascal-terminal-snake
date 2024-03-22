@@ -71,7 +71,8 @@ begin
   if (IOResult <> 0) or (variable < min) 
   or (variable > max) then
   begin
-    writeln(errorMsg);
+    TextColor(LightRed);
+    writeln('Error: ', errorMsg);
     halt(1);
   end;
 end;
@@ -507,10 +508,9 @@ begin
     
     UpdateSnake(snake);
     HandleCollision(snake, field.size, gameOver, food);
-      DrawField(field);
+    DrawField(field);
   
 	end;
-	
 	
 	write(#27'[0m');
 	clrscr;
