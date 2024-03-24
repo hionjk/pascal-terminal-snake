@@ -15,6 +15,11 @@ const
 	maxFoodSatiation = 3;
 	maxStyleId = 3;
 	
+	// 1 - border char # [1, 1]
+	// 2 - first cell [2, 2]
+	// 3 - second cell [3, 3]
+	foodSpawnMargin = 3;
+	
 type
 
 	TVector = record
@@ -60,6 +65,16 @@ type
     satiation: integer;
     pos: TVector;
   end;
+
+procedure WriteStr(text: string; color, bgColor: integer);
+begin
+  TextColor(color);
+  TextBackground(bgColor);
+  write(text);
+  
+  TextColor(stdPrintColor);
+  TextBackground(black);
+end;
   
 procedure ReadInteger(min,max: integer; var variable: integer; errorMsg: string);
 begin
@@ -77,29 +92,11 @@ begin
   end;
 end;
 
-procedure UpdateSnake(var snake: TSnake);
+
+procedure DrawSnake(snake: TSnake);
 var
   i: integer;
-begin  
-  for i := 1 to snake.length do
-  begin
-    GotoXY(snake.parts[i].x, snake.parts[i].y);
-    TextBackground(black);
-    write(' ');  
-  end;
-  
-  for i := snake.length downto 2 do
-  begin
-    GotoXY(snake.parts[i - 1].x, snake.parts[i - 1].y);
-    snake.parts[i] := snake.parts[i - 1];
-  end;
-  
-  GotoXY(1, 1);
-  
-  snake.parts[1].x := snake.parts[1].x + snake.direction.x;
-  snake.parts[1].y := snake.parts[1].y + snake.direction.y;
-  
-  
+begin
   if snake.style.bodyChar = ' ' then
     TextBackground(snake.style.bodyColor)
   else
@@ -120,6 +117,30 @@ begin
 	write(snake.style.headChar);
 	
 	GotoXY(1,1);
+end;
+
+procedure UpdateSnake(var snake: TSnake);
+var
+  i: integer;
+begin  
+  
+  for i := 1 to snake.length do
+  begin
+    GotoXY(snake.parts[i].x, snake.parts[i].y);
+    TextBackground(black);
+    write(' ');
+  end;
+  
+  for i := snake.length downto 2 do
+  begin 
+    GotoXY(snake.parts[i - 1].x, snake.parts[i - 1].y);
+    snake.parts[i] := snake.parts[i - 1];   
+  end;
+  
+  GotoXY(1, 1);
+  
+  snake.parts[1].x := snake.parts[1].x + snake.direction.x;
+  snake.parts[1].y := snake.parts[1].y + snake.direction.y;
 end;
 
 procedure DrawField(field: TField);
@@ -289,12 +310,13 @@ begin
   
   case food.satiation of
     1: food.color := Red;
-    2: food.color := Blue;
+    2: food.color := Blue;  
     3: food.color := Yellow;
   end;
   
-  food.pos.x := Random(fieldSize.width - 5) + 4;
-  food.pos.y := Random(fieldSize.height - 5) + 4;
+  // I subtracted 1 from the height and width because border is included in them.
+  food.pos.x := Random(fieldSize.width - 1 - (foodSpawnMargin + 1)) + foodSpawnMargin;
+  food.pos.y := Random(fieldSize.height - 1 - (foodSpawnMargin + 1)) + foodSpawnMargin;
    
   for i := 1 to snake.length do
   begin
@@ -309,36 +331,41 @@ begin
   
 end;
 
+procedure WriteMessageOnCenter(msg: string; color, shiftY: integer);
+begin
+  TextColor(color);
+  GotoXY((ScreenWidth - length(msg)) div 2, ScreenHeight div 2 + shiftY);
+  write(msg);
+end;
+
 procedure ShowResultScreen(loose: boolean; snakeLength: integer);
 var
-  resultMsg, scoreMsg, scoreValueStr: string;
+  resultMsg, scoreValueStr: string;
+  color: integer;
 begin
   delay(1500);
   write(#27'[0m');
-  if loose then
-    TextColor(LightRed or blink)
-  else 
-    TextColor(LightGreen or blink);
+  
+  if loose then begin
+    resultMsg := 'GAME OVER!!!';
+    color := LightRed or blink
+  end
+  else begin
+    color := LightGreen or blink;
+    resultMsg := 'You win !!!';
+  end;
+  
+  Str(snakeLength - 1, scoreValueStr);
     
   clrscr;
-  if loose then
-    resultMsg := 'GAME OVER!!!'
-  else
-    resultMsg := 'You win !!!';
+
+  WriteMessageOnCenter(resultMsg, color, 0);
+  WriteMessageOnCenter('Score: ' + ScoreValueStr, LightCyan or blink, 1); 
+ 
+  delay(2000);
   
-  // 12 - length of 'Game OVer!!!'
-  GotoXY((ScreenWidth - length(resultMsg)) div 2, ScreenHeight div 2);
-  Writeln(resultMsg);
-  
-  TextColor(LightCyan or blink);
-  
-  Str(snakeLength - 1, ScoreValueStr);
-  scoreMsg := 'Score: ' + ScoreValueStr;
-  
-  // 12 - length of 'Score'
-  GotoXY((ScreenWidth - length(scoreMsg)) div 2, (ScreenHeight div 2) + 1);
-  writeln(scoreMsg);
-  delay(4000);
+  WriteMessageOnCenter('-> Press any key to quit <-', stdPrintColor, 4);
+  ReadKey;
 end;
 
 procedure HandleCollision(var snake: TSnake; fieldSize: TSize; 
@@ -380,6 +407,7 @@ begin
       gameOver := true;
     end;
     
+    UpdateSnake(snake);
     UpdateFood(snake, food, fieldSize);
   end;
 end;
@@ -427,10 +455,10 @@ begin
   delay(1500);
   write('Press ');
   TextColor(LightRed);
-  write('Enter');
+  write('Any key');
   TextColor(stdPrintColor);
   writeln(' to start...');
-  readln;
+  readkey;
 end;
 
 procedure SetSettings(var snake: TSnake; var field: TField);
@@ -438,18 +466,18 @@ var
   c: char;
   styleId: integer;
 begin
-  repeat
-    TextColor(stdPrintColor);
+  TextColor(stdPrintColor);
     
-    write('Do you want to start with standard settings? (y/n): ');
-    
-    TextColor(stdInputColor);
-    readln(c);
-  until (c = 'n') or (c = 'y');
+  write('Do you want to start with standard settings? (y/n): ');
+  
+  TextColor(stdInputColor);
+  readln(c);
+  
+  if (c <> 'n') and (c <> 'y') then
+    halt(1);  
   
   if c = 'n' then
   begin
-    
     TextColor(stdPrintColor);
     write('Field width[',minFieldWidth,' - ', ScreenWidth - 5,']: ');
     ReadInteger(minFieldWidth, ScreenWidth - 5, field.size.width, 
@@ -459,13 +487,11 @@ begin
     write('Field height[',minFieldHeight,' - ', ScreenHeight - 2,']: ');
     ReadInteger(minFieldHeight, ScreenHeight - 2, field.size.height, 
     'You entered an incorrect field height');
-
      
     TextColor(stdPrintColor);
     write('Select style[',1,' - ', maxStyleId,']: ');
     ReadInteger(1, maxStyleId, styleId, 
-    'You entered style that doesn''t exist' );
-     
+    'You entered style that doesn''t exist' );   
   end
   else
   begin
@@ -497,6 +523,7 @@ begin
   InitSnake(snake, field.size);
   InitField(field);
   
+  UpdateSnake(snake);
   UpdateFood(snake, food, field.size);
 
 	while not gameOver do
@@ -506,8 +533,9 @@ begin
     if KeyPressed then
       HandleKey(snake, gameOver);
     
-    UpdateSnake(snake);
     HandleCollision(snake, field.size, gameOver, food);
+    UpdateSnake(snake);
+    DrawSnake(snake);
     DrawField(field);
   
 	end;
